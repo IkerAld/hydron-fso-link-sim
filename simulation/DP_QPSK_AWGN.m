@@ -13,7 +13,7 @@ Ts = 1/Rs;
 % DP-QPSK:
 % QPSK = 2 bits/symbol/polarization
 % DP = 2 polarizations
-num_symbols = 1e5;          % symbols per polarization ??
+num_symbols = 1e6;          % symbols per polarization ??
 M = 4;                      % QPSK modulation order
 k = log2(M);                % bits per symbol
 Npol = 2;                   % dual polarization
@@ -40,6 +40,7 @@ fprintf('=============================\n\n');
 
 %% 2. TX - Data Generation (PRBS)
 
+% Not truly PRBS, in 2020_Nazir_32GBaud_DP-QPSK, they use 2^17 - 1 PRBS
 % Generate independent random binary data for X and Y polarizations
 % randi([0 1], rows, columns) creates a column vector of 1s and 0s
 bits_X = randi([0 1], num_symbols * k, 1);
@@ -55,6 +56,11 @@ ints_Y = bit2int(bits_Y, k);
 % Modulate the symbols into a gray QPSK
 symbols_X = pskmod(ints_X, M, pi/4, 'gray');
 symbols_Y = pskmod(ints_Y, M, pi/4, 'gray');
+% Based on the OpenROAD standard the modulation are different
+    %bX = reshape(bits_X, k, []).';     % rows: [bI bQ]
+    %symbols_X = ((2*bX(:,1)-1) + 1j*(2*bX(:,2)-1)) / sqrt(2);
+%bY = reshape(bits_Y, k, []).';
+%symbols_Y = ((2*bY(:,1)-1) + 1j*(2*bY(:,2)-1)) / sqrt(2);
 
 % Check symbol energy
 Es_X = mean(abs(symbols_X).^2);
@@ -95,14 +101,14 @@ fprintf('Expected approx.         = %.6f (= 1/sps)\n\n', 1/sps);
 %% 5. TX - Visualization
 
 % 5.1 Ideal QPSK constellation before pulse shaping -----------------------
-figure('Name','Tx symbols');
+figure('Name','Tx Symbols');
 
 subplot(1,2,1);
 plot(real(symbols_X), imag(symbols_X), 'bo', 'MarkerFaceColor','b');
 grid on; axis square;
 xlabel('In-Phase (I)');
 ylabel('Quadrature (Q)');
-title('X-Polarization (Ideal)'); 
+title('X-Polarization'); 
 xlim([-1.5 1.5]); ylim([-1.5 1.5]);
 
 subplot(1,2,2);
@@ -184,60 +190,96 @@ title(ax(1), 'Y-pol I-component eye diagram');
 tx_DP = [tx_X, tx_Y];
 
 % AWGN channel: receiver gets a noised signal
-rx_DP = awgn(tx_DP, 7.78, 'measured');
-rx_X = rx_DP(:,1);
-rx_Y = rx_DP(:,2);
+EbN0_dB_vec = 0:1:12;               % Sweep of values to plot the BER
+EbN0_lin = 10.^(EbN0_dB_vec/10);
 
-%% 7. RX - Matched Filter
+BER_X = zeros(size(EbN0_dB_vec));
+BER_Y = zeros(size(EbN0_dB_vec));
+BER_total = zeros(size(EbN0_dB_vec));
 
-% Receiver matched filter uses the same RRC filter
-% No up/downsampling
-rxmf_X = upfirdn(rx_X, rrc);
-rxmf_Y = upfirdn(rx_Y, rrc);
+SER_X = zeros(size(EbN0_dB_vec));
+SER_Y = zeros(size(EbN0_dB_vec));
+SER_total = zeros(size(EbN0_dB_vec));
+SER_DP = zeros(size(EbN0_dB_vec));  
 
-% Total delay:
+% Exact uncoded Gray-QPSK theory
+BER_theory = qfunc(sqrt(2*EbN0_lin));
+SER_theory = 2*BER_theory - BER_theory.^2;
+SER_DP_theory = 1 - (1 - SER_theory).^2;
 
+% Filters group delay
 % Tx RRC group delay = ((span*sps+1) - 1) / 2
 % Rx RRC group delay = ((span*sps+1) - 1) / 2
 % Total delay  = (((span*sps+1) - 1) / 2) + (((span*sps+1) - 1) / 2)
 total_delay = span * sps;
 
-% Downsample at symbol instants
-rx_symbols_X = rxmf_X(total_delay + 1 : sps : total_delay + num_symbols*sps);
-rx_symbols_Y = rxmf_Y(total_delay + 1 : sps : total_delay + num_symbols*sps);
+for i = 1:length(EbN0_dB_vec)
+    EbN0 = 10^(EbN0_dB_vec(i)/10);
 
-%% 8. RX - QPSK Demodulation
+    % QPSK: Es/N0 = k Eb/N0, with Es = 1
+    EsN0 = k * EbN0;
+    N0 = 1 / EsN0;
 
-% Demodulate the gray QPSK into symbols
-ints_hat_X = pskdemod(rx_symbols_X, M, pi/4, 'gray');
-ints_hat_Y = pskdemod(rx_symbols_Y, M, pi/4, 'gray');
+    noise_X = sqrt(N0/2) * ...
+        (randn(size(tx_X)) + 1j*randn(size(tx_X)));
 
-% Convert the the integers (0 to 3) into 2-bit pairs (e.g., [1 0]). 
-% MSB by default
-bits_hat_X = int2bit(ints_hat_X, k);
-bits_hat_Y = int2bit(ints_hat_Y, k);
+    noise_Y = sqrt(N0/2) * ...
+        (randn(size(tx_Y)) + 1j*randn(size(tx_Y)));
 
-%% 9. BER Calculation
+    rx_X = tx_DP(:,1) + noise_X;
+    rx_Y = tx_DP(:,2) + noise_Y;
 
-BER_X = mean(bits_X ~= bits_hat_X);
-BER_Y = mean(bits_Y ~= bits_hat_Y);
+    % Receiver matched filter uses the same RRC filter
+    % No up/downsampling
+    rxmf_X = upfirdn(rx_X, rrc);
+    rxmf_Y = upfirdn(rx_Y, rrc);
 
-BER_total = mean([bits_X ~= bits_hat_X; bits_Y ~= bits_hat_Y]);
+    % Downsample at symbol instants
+    rx_symbols_X = rxmf_X(total_delay + 1 : sps : total_delay + num_symbols*sps);
+    rx_symbols_Y = rxmf_Y(total_delay + 1 : sps : total_delay + num_symbols*sps);
 
-fprintf('\n=== Ideal Receiver Check ===\n');
-fprintf('BER X-pol   = %.3e\n', BER_X);
-fprintf('BER Y-pol   = %.3e\n', BER_Y);
-fprintf('BER total   = %.3e\n', BER_total);
-fprintf('============================\n\n');
+    % Demodulate the gray QPSK into symbols
+    ints_hat_X = pskdemod(rx_symbols_X, M, pi/4, 'gray');
+    ints_hat_Y = pskdemod(rx_symbols_Y, M, pi/4, 'gray');
+
+    % Convert the the integers (0 to 3) into 2-bit pairs (e.g., [1 0]). 
+    % MSB by default
+    bits_hat_X = int2bit(ints_hat_X, k);
+    bits_hat_Y = int2bit(ints_hat_Y, k);
+
+    % BER
+    BER_X(i) = mean(bits_X ~= bits_hat_X);
+    BER_Y(i) = mean(bits_Y ~= bits_hat_Y);
+    BER_total(i) = mean([bits_X ~= bits_hat_X; bits_Y ~= bits_hat_Y]);
+
+    % SER
+    tx_bits_X_sym = reshape(bits_X, k, []).';
+    tx_bits_Y_sym = reshape(bits_Y, k, []).';
+
+    rx_bits_X_sym = reshape(bits_hat_X, k, []).';
+    rx_bits_Y_sym = reshape(bits_hat_Y, k, []).';
+
+    sym_err_X = any(tx_bits_X_sym ~= rx_bits_X_sym, 2);
+    sym_err_Y = any(tx_bits_Y_sym ~= rx_bits_Y_sym, 2);
+
+    SER_X(i)     = mean(sym_err_X);
+    SER_Y(i)     = mean(sym_err_Y);
+    SER_total(i) = mean([sym_err_X; sym_err_Y]);
+
+    % DP-symbol error: one error if X or Y symbol is wrong
+    SER_DP(i) = mean(sym_err_X | sym_err_Y);
+
+end
+
 
 %% 10. RX - Visualization
 
 % 10.1 Received spectrum --------------------------------------------------
-figure('Name','Rx Spectrum');
+figure('Name','Rx Spectrum after Matched Filter');
 
 % https://es.mathworks.com/help/signal/ref/pwelch.html
-[Pxx_r, f_psd_r] = pwelch(rx_X, win, noverlap, nfft, Fs, 'centered');
-[Pyy_r, ~]     = pwelch(rx_Y, win, noverlap, nfft, Fs, 'centered');
+[Pxx_r, f_psd_r] = pwelch(rxmf_X, win, noverlap, nfft, Fs, 'centered');
+[Pyy_r, ~]     = pwelch(rxmf_Y, win, noverlap, nfft, Fs, 'centered');
 
 plot(f_psd_r/1e9, 10*log10(Pxx_r/max(Pxx_r)), 'b', 'LineWidth', 1.2);
 hold on;
@@ -246,7 +288,7 @@ grid on;
 
 xlabel('Frequency [GHz]');
 ylabel('Normalized PSD [dB]');
-title(sprintf('DP-QPSK Rx spectrum, expected null-null BW = %.2f GHz', ...
+title(sprintf('DP-QPSK Rx spectrum after matched filter, expected null-null BW = %.2f GHz', ...
     BW_null/1e9));
 legend('X-pol', 'Y-pol', 'Location', 'best');
 ylim([-80 5]);
@@ -265,22 +307,57 @@ title(ax2(2), 'X-pol I-component eye diagram after matched filter');
 title(ax2(1), 'Y-pol I-component eye diagram after matched filter');
 
 % 10.2 Received constellation after matched filter ------------------------
-figure('Name','Received symbols after ideal matched filter');
+figure('Name','Rx Symbols after Matched Filter');
 
 subplot(1,2,1);
 plot(real(rx_symbols_X(1:2000)), imag(rx_symbols_X(1:2000)), 'bo', ...
     'MarkerFaceColor','b');
 grid on; axis square;
-xlabel('In-Phase');
-ylabel('Quadrature');
-title('Recovered X-pol symbols');
+xlabel('In-Phase (I)');
+ylabel('Quadrature (Q)');
+title('Recovered X-Pol. symbols'); 
 xlim([-1.5 1.5]); ylim([-1.5 1.5]);
 
 subplot(1,2,2);
 plot(real(rx_symbols_Y(1:2000)), imag(rx_symbols_Y(1:2000)), 'ro', ...
     'MarkerFaceColor','r');
 grid on; axis square;
-xlabel('In-Phase');
-ylabel('Quadrature');
-title('Recovered Y-pol symbols');
+xlabel('In-Phase (I)');
+ylabel('Quadrature (Q)');
+title('Recovered Y-Pol. symbols'); 
 xlim([-1.5 1.5]); ylim([-1.5 1.5]);
+
+% 10.3 BER Plot -----------------------------------------------------------
+figure('Name','BER vs EbN0');
+
+semilogy(EbN0_dB_vec, BER_theory, 'k-', 'LineWidth', 1.5);
+hold on;
+semilogy(EbN0_dB_vec, BER_X, 'bo-');
+semilogy(EbN0_dB_vec, BER_Y, 'rs-');
+semilogy(EbN0_dB_vec, BER_total, 'md-');
+grid on;
+xlabel('E_b/N_0 [dB]');
+ylabel('BER');
+title('Gray-coded DP-QPSK AWGN BER validation');
+legend('Theory QPSK', 'X-pol', 'Y-pol', 'Total', ...
+       'Location', 'southwest');
+ylim([1e-6 1]);
+
+% 10.4 SER Plot -----------------------------------------------------------
+figure('Name','SER vs EbN0');
+
+semilogy(EbN0_dB_vec, SER_theory, 'k-', 'LineWidth', 1.5);
+hold on;
+semilogy(EbN0_dB_vec, SER_X, 'bo-');
+semilogy(EbN0_dB_vec, SER_Y, 'rs-');
+semilogy(EbN0_dB_vec, SER_total, 'md-');
+semilogy(EbN0_dB_vec, SER_DP, 'g^-');
+semilogy(EbN0_dB_vec, SER_DP_theory, 'k--', 'LineWidth', 1.2);
+grid on;
+xlabel('E_b/N_0 [dB]');
+ylabel('SER');
+title('Gray-coded DP-QPSK AWGN SER validation');
+legend('Theory per-pol QPSK', 'X-pol', 'Y-pol', ...
+       'Total per-pol', 'DP-symbol sim', 'DP-symbol theory', ...
+       'Location', 'southwest');
+ylim([1e-6 1]);
