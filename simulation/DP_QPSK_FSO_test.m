@@ -59,8 +59,6 @@ scen.wl = 1554.13e-9; % wavelength [m], ESTOL L2
 scen.t_z = 0.891; % zenith transmittance bad, 1550 nm
 % Turbulence effects
 scen.h_orbit = 530e3; % satellite altitude [m]
-scen.v_wind = 21; % HV-5/7 RMS high-altitude wind [m/s]
-scen.A0 = 1.7e-14; % ground-level Cn^2 [m^-2/3], HV-5/7 default
 % Calculated variables
 scen.h_ogs = scen.h_site_ogs - scen.h_site;
 % Pointing effects
@@ -74,11 +72,12 @@ scen.w_z = scen.l_slant * scen.theta_tx_rad; % 1/e^2 beam radius at ground [m]
 scen.a_rx = scen.D_rx / 2; % aperture radius [m]
 scen.nu_ap = sqrt(pi) * scen.a_rx / (sqrt(2) * scen.w_z); % Farid nu parameter [-]
 scen.A0_pt = erf(scen.nu_ap)^2; % on-axis collected fraction [-]
-% Future additions (do not delete; comment out until used):
-scen.sigma_jit_rad = 0.85*scen.theta_tx_rad/2; % RMS jitter per axis [rad]
-%scen.sigma_jit_rad = 35e-6; % per-axis RMS, worst case TBIRD (Y axis)
+% Pre-lock pointing jitter
+%scen.sigma_jit_rad = 0.85 * scen.theta_tx_rad / 2; % RMS jitter per axis [rad]
+% Post-lock pointing jitter
+scen.sigma_jit_rad = 35e-6; % per-axis RMS, worst case TBIRD (Y axis)
 %scen.beta_pj = scen.theta_tx_rad^2 / (4 * log(2) * (scen.sigma_jit_rad^2) );
-scen.beta_pj = scen.theta_tx_rad^2 / scen.sigma_jit_rad^2 /(8*log(2)); 
+scen.beta_pj = scen.theta_tx_rad^2 / scen.sigma_jit_rad^2 / (8 * log(2));
 
 % 1.3 FSO channel inputs --------------------------------------------------
 % Lognormal sampling
@@ -122,17 +121,20 @@ bits_Y = randi([0, 1], sig.num_sym*sig.k, 1);
 
 % Convert the the 2-bit pairs (e.g., [1 0]) into integers (0 to 3).
 % MSB by default
-ints_X = bit2int(bits_X, sig.k);
-ints_Y = bit2int(bits_Y, sig.k);
+%ints_X = bit2int(bits_X, sig.k);
+%ints_Y = bit2int(bits_Y, sig.k);
+
+% Bits per polarization: [bI bQ]
+bX = reshape(bits_X, sig.k, []).'; % Nsym x 2, columns = [bI bQ]
+bY = reshape(bits_Y, sig.k, []).';
+
+% OpenROADM relative amplitude map, normalized to unit symbol energy
+symbols_X = ((2*bX(:,1)-1) + 1j*(2*bX(:,2)-1)) / sqrt(2);
+symbols_Y = ((2*bY(:,1)-1) + 1j*(2*bY(:,2)-1)) / sqrt(2);
 
 % Modulate the symbols into a gray QPSK
-symbols_X = pskmod(ints_X, sig.M, pi/4, 'gray');
-symbols_Y = pskmod(ints_Y, sig.M, pi/4, 'gray');
-% Based on the OpenROAD standard the modulation are different
-%bX = reshape(bits_X, sig.k, []).';     % rows: [bI bQ]
-%symbols_X = ((2*bX(:,1)-1) + 1j*(2*bX(:,2)-1)) / sqrt(2);
-%bY = reshape(bits_Y, sig.k, []).';
-%symbols_Y = ((2*bY(:,1)-1) + 1j*(2*bY(:,2)-1)) / sqrt(2);
+%symbols_X = pskmod(ints_X, sig.M, pi/4, 'gray');
+%symbols_Y = pskmod(ints_Y, sig.M, pi/4, 'gray');
 
 % Check symbol energy
 Es_X = mean(abs(symbols_X).^2);
@@ -192,6 +194,43 @@ ylabel('Quadrature (Q)');
 title('Y-Polarization');
 xlim([-1.5, 1.5]);
 ylim([-1.5, 1.5]);
+
+% 5.1b Ideal QPSK constellation before pulse shaping ----------------------
+figure('Name','Tx Symbols alt');
+
+theta = linspace(0, 2*pi, 500);
+unit_circle = exp(1j*theta);
+
+tiledlayout(1,2,'TileSpacing','compact','Padding','compact');
+
+% X-polarization
+nexttile;
+plot(real(unit_circle), imag(unit_circle), 'k--', ...
+    'LineWidth', 0.8, 'Color', [0.45 0.45 0.45]);
+hold on;
+plot(real(symbols_X), imag(symbols_X), 'bo', ...
+    'MarkerFaceColor', 'b', ...
+    'MarkerSize', 5);
+grid on; axis square;
+xlabel('In-phase ($I$)');
+ylabel('Quadrature ($Q$)');
+title('X-Polarization');
+xlim([-1.5 1.5]); ylim([-1.5 1.5]);
+
+% Y-polarization
+nexttile;
+plot(real(unit_circle), imag(unit_circle), 'k--', ...
+    'LineWidth', 0.8, 'Color', [0.45 0.45 0.45]);
+hold on;
+plot(real(symbols_Y), imag(symbols_Y), 'ro', ...
+    'MarkerFaceColor', 'r', ...
+    'MarkerSize', 5);
+grid on; axis square;
+xlabel('In-phase Amplitude ($I$)');
+ylabel('Quadrature Amplitude ($Q$)');
+title('Y-Polarization');
+xlim([-1.5 1.5]); ylim([-1.5 1.5]);
+
 
 % 5.2 RRC impulse response ----------------------------------------------
 figure('Name', 'RRC Impulse Response');
@@ -376,7 +415,7 @@ fprintf('A0 (ground Cn^2)             = %.2e m^(-2/3)\n', prof(3).A0);
 fprintf('Zenith angle                 = %.2f deg\n', rad2deg(zeta_rad));
 fprintf('Rytov variance (sigma_R^2)   = %.2f \n', sigma_R2_MHV);
 fprintf('Scint. index (sigma_I^2)     = %.2f \n', sigma_I2_dl);
-fprintf('Monte Carlo  sampler check (N = %.0e):\n', ch.n_distr);
+fprintf('Monte Carlo  sampler check     (N = %.0e):\n', ch.n_distr);
 fprintf('  mean(I)                    = %.4f (target 1.0000)\n', mean(I_turb));
 fprintf('  var(I)                     = %.4f (target %.4f)\n', ...
     var(I_turb), sigma_I2_dl);
@@ -386,11 +425,11 @@ fprintf('=== FSO Channel: pointing (Farid-Hranilovic) ===\n');
 fprintf('  Slant range L (el=%.0f deg)  = %.1f km\n', scen.el_deg, scen.l_slant/1e3);
 fprintf('  Beam radius at ground w_z  = %.1f m\n', scen.w_z);
 fprintf('  On-axis fraction A0        = %.3e  (-> link budget)\n', scen.A0_pt);
-fprintf('  scen.beta_pj (= gamma^2)        = %.3f\n', scen.beta_pj);
+fprintf('  beta_pj (= gamma^2)        = %.3f\n', scen.beta_pj);
 fprintf('  Pointing scint. sigma_p^2  = %.4f\n', sigma_pt2);
 fprintf('  MC sampler: mean(h_p)      = %.4f (target 1.0000)\n', mean(I_point));
 fprintf('  MC sampler: var(h_p)       = %.4f (target %.4f)\n', var(I_point), sigma_pt2);
-
+fprintf('========================================\n\n');
 %% 7. Free Space Optical Channel - Setup Visualization
 
 % 7.1 Cn2 profiles and Rytov, A0 and wind values --------------------------
@@ -533,8 +572,9 @@ for j = 1:ch.nframes
         rx_symbols_Y_full = rxmf_Y_full(total_delay+1:sig.sps:total_delay+sig.num_sym*sig.sps);
 
         % Demodulate the gray QPSK into symbols
-        ints_hat_X = pskdemod(rx_symbols_X_atm_turb, sig.M, pi/4, 'gray');
-        ints_hat_Y = pskdemod(rx_symbols_Y_atm_turb, sig.M, pi/4, 'gray');
+        
+        %ints_hat_X = pskdemod(rx_symbols_X_atm_turb, sig.M, pi/4, 'gray');
+        %ints_hat_Y = pskdemod(rx_symbols_Y_atm_turb, sig.M, pi/4, 'gray');
         % Aperture averaged
         ints_hat_X_av = pskdemod(rx_symbols_X_av, sig.M, pi/4, 'gray');
         ints_hat_Y_av = pskdemod(rx_symbols_Y_av, sig.M, pi/4, 'gray');
@@ -610,18 +650,18 @@ BER_theory_full = mean(qfunc(sqrt(2*h_atm.* ...
 vis.EbN0_dB = 8; % display operating point [dB]
 vis.q = 0.2; % fade quantile (0.5 = median, 0.05 = deep fade)
 % Calculated values
-vis.EbN0_lin = 10.^(vis.EbN0_dB/10);
+vis.EbN0_lin = 10.^(vis.EbN0_dB / 10);
 vis.EsN0 = sig.k * vis.EbN0_lin;
 vis.N0 = 1 / vis.EsN0;
 vis.sigma = sqrt(vis.N0/2);
 
 % Component quantiles (closed-form; could equally use quantile() on the ensembles)
 vis.h_turb = exp(mu_logn+sqrt(sigma_2_logn) ...
-    * -sqrt(2) * erfcinv(2 * vis.q)); % point rx
+    *-sqrt(2)*erfcinv(2*vis.q)); % point rx
 vis.h_turb_av = exp(mu_logn_av+sqrt(sigma_2_logn_av) ...
-    * -sqrt(2) * erfcinv(2 * vis.q)); % aperture
+    *-sqrt(2)*erfcinv(2*vis.q)); % aperture
 vis.h_point = ((scen.beta_pj + 1) / scen.beta_pj) ...
-    * vis.q ^ (1 / scen.beta_pj); % unit-mean, matches sample_point
+    * vis.q^(1 / scen.beta_pj); % unit-mean, matches sample_point
 
 % Stage gains
 vis.h_atm_turb = h_atm * vis.h_turb;
@@ -630,9 +670,9 @@ vis.h_full = h_atm * vis.h_turb_av * vis.h_point; % per-component product (optio
 
 % Fresh noise (independent of BER loop)
 vis.noise_X = vis.sigma * (randn(size(tx_DP(:, 1))) ...
-    + 1j * randn(size(tx_DP(:, 1))));
+    +1j * randn(size(tx_DP(:, 1))));
 vis.noise_Y = vis.sigma * (randn(size(tx_DP(:, 2))) ...
-    + 1j * randn(size(tx_DP(:, 2))));
+    +1j * randn(size(tx_DP(:, 2))));
 
 % AWGN only
 rx_X_AWGN = tx_DP(:, 1) + vis.noise_X;
@@ -672,7 +712,6 @@ rx_symbols_X_av = rxmf_X_av(total_delay+1:sig.sps:total_delay+sig.num_sym*sig.sp
 rx_symbols_Y_av = rxmf_Y_av(total_delay+1:sig.sps:total_delay+sig.num_sym*sig.sps);
 rx_symbols_X_full = rxmf_X_full(total_delay+1:sig.sps:total_delay+sig.num_sym*sig.sps);
 rx_symbols_Y_full = rxmf_Y_full(total_delay+1:sig.sps:total_delay+sig.num_sym*sig.sps);
-
 
 %% 9. RX - Visualization
 
@@ -807,116 +846,110 @@ legend({ ...
 ylim([1e-6, 1]);
 xlim([min(ch.EbN0_dB_vec), max(ch.EbN0_dB_vec)]);
 
-
 %% Animation
 % EbN0_plot_dB = 8;
-% EbN0_plot = 10^(EbN0_plot_dB/10);
-%
+% EbN0_plot = 10^(EbN0_plot_dB / 10);
+% 
 % EsN0_plot = sig.k * EbN0_plot;
 % N0_plot = 1 / EsN0_plot;
 % sigma_plot = sqrt(N0_plot/2);
-%
+% 
 % % Fixed noise realization per frame or regenerated each frame
 % % Better to regenerate each frame to feel "live"
-% Nshow = 1000;   % plotted symbols
-%
+% Nshow = 1000; % plotted symbols
+% 
 % % Controlled turbulence sweep
 % Nanim = 150;
-%
-%
+% 
+% 
 % % Elevation sweep: low elevation -> zenith -> low elevation
-% el_seq_deg = [linspace(15,90,60), linspace(90,15,60)];
-% h_atm_seq = scen.t_z .^ (1 ./ sind(el_seq_deg));
-%
-% figure('Name','Animated atmospheric attenuation constellation');
+% el_seq_deg = [linspace(15, 90, 60), linspace(90, 15, 60)];
+% h_atm_seq = scen.t_z.^(1 ./ sind(el_seq_deg));
+% 
+% figure('Name', 'Animated atmospheric attenuation constellation');
 % ax = axes;
-% grid(ax,'on');
-% axis(ax,'square');
-% xlim(ax,[-1.5 1.5]);
-% ylim(ax,[-1.5 1.5]);
+% grid(ax, 'on');
+% axis(ax, 'square');
+% xlim(ax, [-1.5, 1.5]);
+% ylim(ax, [-1.5, 1.5]);
 % xlabel('In-Phase (I)');
 % ylabel('Quadrature (Q)');
-%
+% 
 % h_sc = scatter(ax, nan, nan, 20, 'b', 'filled');
-%
+% 
 % for kf = 1:length(el_seq_deg)
-%
+% 
 %     el_anim = el_seq_deg(kf);
 %     h_atm_anim = h_atm_seq(kf);
-%
+% 
 %     noise_X = sigma_plot * ...
-%         (randn(size(tx_DP(:,1))) + 1j*randn(size(tx_DP(:,1))));
-%
-%     rx_X_anim = sqrt(h_atm_anim) .* tx_DP(:,1) + noise_X;
-%
+%         (randn(size(tx_DP(:, 1))) + 1j * randn(size(tx_DP(:, 1))));
+% 
+%     rx_X_anim = sqrt(h_atm_anim) .* tx_DP(:, 1) + noise_X;
+% 
 %     rxmf_X_anim = upfirdn(rx_X_anim, rrc);
-%
+% 
 %     rx_symbols_X_anim = rxmf_X_anim( ...
-%         total_delay + 1 : sig.sps : total_delay + sig.num_sym*sig.sps);
-%
+%         total_delay+1:sig.sps:total_delay+sig.num_sym*sig.sps);
+% 
 %     pts = rx_symbols_X_anim(1:Nshow);
-%
+% 
 %     set(h_sc, 'XData', real(pts), 'YData', imag(pts));
-%
-%     title(sprintf(['Atmosphere-only X-pol constellation, ' ...
-%         '$E_b/N_0=%.1f$ dB, $\\epsilon=%.1f^\\circ$, ' ...
+% 
+%     title(sprintf(['Atmosphere-only X-pol constellation, ', ...
+%         '$E_b/N_0=%.1f$ dB, $\\epsilon=%.1f^\\circ$, ', ...
 %         '$h_{atm}=%.3f$ ($%.2f$ dB)'], ...
 %         EbN0_plot_dB, ...
 %         el_anim, ...
 %         h_atm_anim, ...
 %         10*log10(h_atm_anim)), ...
-%         'Interpreter','latex');
-%
+%         'Interpreter', 'latex');
+% 
 %     drawnow;
 %     pause(0.06);
 % end
-%
-%
-%
-%
-%
-%
-%
-% g = randn(Nanim,1);
-% b = ones(1,8)/8;              % simple smoothing filter
-% g_slow = filter(b,1,g);
-% g_slow = (g_slow - mean(g_slow))/std(g_slow);
-%
-% h_seq = exp(mu_logn + sqrt(sigma_2_logn)*g_slow);
-%
-% figure('Name','Animated turbulence constellation');
+% 
+% 
+% g = randn(Nanim, 1);
+% b = ones(1, 8) / 8; % simple smoothing filter
+% g_slow = filter(b, 1, g);
+% g_slow = (g_slow - mean(g_slow)) / std(g_slow);
+% 
+% h_seq = exp(mu_logn+sqrt(sigma_2_logn)*g_slow);
+% 
+% figure('Name', 'Animated turbulence constellation');
 % ax = axes;
-% grid(ax,'on');
-% axis(ax,'square');
-% xlim(ax,[-1.5 1.5]);
-% ylim(ax,[-1.5 1.5]);
+% grid(ax, 'on');
+% axis(ax, 'square');
+% xlim(ax, [-1.5, 1.5]);
+% ylim(ax, [-1.5, 1.5]);
 % xlabel('In-Phase (I)');
 % ylabel('Quadrature (Q)');
-%
+% 
 % h_sc = scatter(ax, nan, nan, 20, 'b', 'filled');
-%
+% 
 % for kf = 1:length(h_seq)
-%
+% 
 %     h_turb_anim = h_seq(kf);
 %     h_ch_anim = h_atm * h_turb_anim;
-%
-%     noise_X = sigma_plot * (randn(size(tx_DP(:,1))) + 1j*randn(size(tx_DP(:,1))));
-%     rx_X_anim = sqrt(h_ch_anim) .* tx_DP(:,1) + noise_X;
-%
+% 
+%     noise_X = sigma_plot * (randn(size(tx_DP(:, 1))) + 1j * randn(size(tx_DP(:, 1))));
+%     rx_X_anim = sqrt(h_ch_anim) .* tx_DP(:, 1) + noise_X;
+% 
 %     rxmf_X_anim = upfirdn(rx_X_anim, rrc);
-%     rx_symbols_X_anim = rxmf_X_anim(total_delay + 1 : sig.sps : total_delay + sig.num_sym*sig.sps);
-%
+%     rx_symbols_X_anim = rxmf_X_anim(total_delay+1:sig.sps:total_delay+sig.num_sym*sig.sps);
+% 
 %     pts = rx_symbols_X_anim(1:Nshow);
-%
+% 
 %     set(h_sc, 'XData', real(pts), 'YData', imag(pts));
-%
-%     title(sprintf(['X-pol constellation, $E_b/N_0 = %.1f$ dB, ' ...
+% 
+%     title(sprintf(['X-pol constellation, $E_b/N_0 = %.1f$ dB, ', ...
 %         '$h_{turb}=%.3f$ ($%.2f$ dB), $h_{atm}h_{turb}=%.3f$ ($%.2f$ dB)'], ...
 %         EbN0_plot_dB, ...
 %         h_turb_anim, 10*log10(h_turb_anim), ...
 %         h_ch_anim, 10*log10(h_ch_anim)), ...
-%         'Interpreter','latex');
-%
+%         'Interpreter', 'latex');
+% 
 %     drawnow;
 %     pause(0.08);
 % end
