@@ -13,13 +13,11 @@
 %
 % Based on: LinkBudget_OLEODL_20240514.m
 % Revision: 2026-05-11
-
 %% Local functions
 function P_W = dBm_to_W(P_dBm)
 % Convert dBm to watts.
 P_W = 10.^(P_dBm ./ 10) / 1e3;
 end
-
 %% 0. Environment
 clc;
 clearvars;
@@ -30,7 +28,8 @@ set(groot, 'defaultTextInterpreter', 'latex');
 set(groot, 'defaultLegendInterpreter', 'latex');
 set(groot, 'defaultAxesTickLabelInterpreter', 'latex');
 % Typography
-set(groot, 'defaultAxesFontSize', 12); % tick labels
+set(groot, 'defaultAxesFontSize', 20); % tick labels
+set(groot, 'defaultLegendFontSize', 12);
 set(groot, 'defaultAxesLabelFontSizeMultiplier', 13/12); % axis labels ≈ 13 pt
 set(groot, 'defaultAxesTitleFontSizeMultiplier', 14/12); % title ≈ 14 pt
 set(groot, 'defaultAxesTitleFontWeight', 'normal');
@@ -39,13 +38,11 @@ set(groot, 'defaultLineLineWidth', 1.3);
 set(groot, 'defaultAxesBox', 'on');
 set(groot, 'defaultAxesXGrid', 'on');
 set(groot, 'defaultAxesYGrid', 'on');
-
 %% 1. Physical constants
 % BIPM, The International System of Units (SI), 9th ed., 2019, §2.3.1.
 C = 299792458; % [m/s], speed of light
 H = 6.62607015e-34; % [J*s], Planck constant
 R_E = 6.3710088e6; % [m] IUGG mean Earth radius R1
-
 %% 2. Mission / scenario inputs
 % --- Transmitter (satellite) ---
 % Wavelength presets [m]:  OSIRIS-FLP=1550e-9, FLP=1545e-9, TBIRD=1550e-9
@@ -85,7 +82,6 @@ d_rx_o = 0.8; % [m], TBIRD outer aperture
 d_rx_i = d_rx_o / 3; % [m], central obscuration (Cassegrain ~1/3)
 %d_rx_i = 0.16;                     % [m], TOGS has 16cm secondary obscuration
 area_rx = pi * (d_rx_o / 2)^2 - pi * (d_rx_i / 2)^2; % [m^2]
-
 %% 3. Atmospheric & pointing parameters
 % Zenith transmittance (Giggenbach LB-paper Table). Pick one row.
 t_z = 0.891; % 1550 nm, bad conditions
@@ -111,21 +107,18 @@ p_thr_sci = 1e-1; % outage fraction for ScintiLoss
 a_tx = -0.3; % [dB], https://ntrs.nasa.gov/api/citations/20230007959/downloads/TBIRD-smallsat-2023.pdf
 % % Transmitter loss presets [dB]: OP:-4.1
 a_rx = -4.1; % Rx incl. splitting for FLP. -14 for KIODO
-
 %% 4. Elevation grid
 el_deg_report = 15; % single elevation for tabular report
 el_deg = 5:1:90; % grid for plotting
 
 el_rad = deg2rad(el_deg);
 el_rad_report = deg2rad(el_deg_report);
-
 %% 5. Geometry: slant range
 % Spherical-Earth law-of-cosines, solved for l given local elevation:
 l = sqrt((R_E + h_ogs).^2.*sin(el_rad).^2+2*(h_orbit - h_ogs).* ...
     (R_E + h_ogs)+(h_orbit - h_ogs).^2) - (R_E + h_ogs) .* sin(el_rad); % [m]
 l_report = sqrt((R_E + h_ogs).^2.*sin(el_rad_report).^2+2*(h_orbit - h_ogs) ...
     .*(R_E + h_ogs)+(h_orbit - h_ogs).^2) - (R_E + h_ogs) .* sin(el_rad_report); % [m]
-
 %% 6. Antenna gains
 % Tx: peak on-axis Gaussian gain via FWHM divergence.
 % G_tx = 16*ln(2)/theta_FWHM^2  =>  sqrt(16*ln(2)) ≈ 3.3302
@@ -137,7 +130,6 @@ g_tx = 10 * log10((GAUSS_FWHM_FACTOR / theta_tx_rad)^2); % [dB]
 % Rx: effective-area antenna gain.
 % Source: Klein & Degnan (1974), companion treatment for Rx aperture.
 g_rx = 10 * log10(4*pi*area_rx/wl^2); % [dB]
-
 %% 7. Channel losses (functions of elevation)
 % Free-space loss [dB]
 a_fsl = 10 * log10((wl ./ (4 * pi .* l)).^2); % [dB]
@@ -145,18 +137,17 @@ a_fsl_report = 10 * log10((wl / (4 * pi * l_report))^2); % [dB]
 
 % Atmospheric loss via secant-law from zenith transmittance.
 a_atm = 10 * log10(t_z.^(1 ./ sin(el_rad))); % [dB]
-a_atm_report = 10*log10( t_z ^  (1/sin(el_rad_report)) );   % [dB]
+a_atm_report = 10 * log10(t_z^(1 / sin(el_rad_report))); % [dB]
 %a_atm_report = -0.6; % [dB], https://ntrs.nasa.gov/api/citations/20230007959/downloads/TBIRD-smallsat-2023.pdf
 
 % Beam-wander loss [dB]
 % In case of a camera we would not have beam wander losses
-a_bw = 10*log10(beta_pj/(beta_pj+1));   % [dB]
+a_bw = 10 * log10(beta_pj/(beta_pj + 1)); % [dB]
 %a_bw = -0.2; % [dB], https://ntrs.nasa.gov/api/citations/20230007959/downloads/TBIRD-smallsat-2023.pdf
 
 % Scintillation loss [dB]. Forced to 0 here.
 %a_sci = (10/log(10)) * ( erfinv(2*p_thr_sci-1) * sqrt(2*log(psi_scint+1)) - 0.5*log(psi_scint+1) );
 a_sci = 0; % [dB]
-
 %% 8. Power budget
 % Rx power onto detector [dBm] (vector over el_deg)
 p_rx = p_tx + a_tx + g_tx + a_fsl + a_bw + a_atm + a_sci + g_rx + a_rx; % [dB]
@@ -181,7 +172,6 @@ link_margin_db = p_rx_report - p_rfe_dbm;
 % Achievable datarate at received power and ppb [bps]
 p_rx_report_w = dBm_to_W(p_rx_report);
 dr_achievable = p_rx_report_w / (ppb * H * C / wl);
-
 %% 9. Report (single-elevation summary)
 fprintf('\n=== LEO-Ground Link Budget @ el = %.1f deg ===\n', el_deg_report);
 fprintf('  Wavelength                       %.0f nm\n', wl*1e9);
@@ -208,7 +198,6 @@ fprintf('  RFE sensitivity                 %+7.2f dBm  (%.2f nW, %d ppb)\n', p_r
 fprintf('  Link margin                     %+7.2f dB\n', link_margin_db);
 fprintf('  Achievable datarate             %.2f Gbps\n', dr_achievable/1e9);
 fprintf('\n');
-
 %% 10. Plot: intensity vs elevation
 figure('Color', 'w', 'Position', [500, 250, 700, 450]);
 

@@ -7,7 +7,7 @@ disp('Initializing HydRON Simulation Environment...');
 project_root = fileparts(mfilename('fullpath'));
 
 % Folders to add (use genpath for folders that should include subfolders)
-folders = { 'data', 'link_budget', 'simulation' };
+folders = { 'link_budget', 'simulation' };
 use_genpath = [ true, true, true, true ]; % set true to include subfolders, false for top-level only
 
 for k = 1:numel(folders)
