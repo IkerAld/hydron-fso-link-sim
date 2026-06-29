@@ -47,7 +47,7 @@ Main assumptions:
 | Satellite altitude     |                          530 $\mathrm{km}$ |
 | Design elevation       |                                        15º |
 | Transmit optical power |                             6 $\mathrm{W}$ |
-| Transmit divergence    |              380 $\mu$ $\mathrm{rad}$ FWHM |
+| Transmit divergence    |                380 $\mu \mathrm{rad}$ FWHM |
 | Receiver aperture      |                           0.8 $\mathrm{m}$ |
 | Pulse shaping          |      RRC, ($\alpha=0.2$), 4 samples/symbol |
 | BER target             |      2.0 $\times10^{-2}$ pre-FEC threshold |
@@ -135,101 +135,29 @@ $$
 \end{align}
 $$
 
-which is close to the selected ESTOL-like received-power requirement of -23.7 $\mathrm{dBm}$. The results of the link budget were as follows:
+which is close to the selected ESTOL-like received-power requirement of -23.7 $\mathrm{dBm}$.
 
-\begin{table}[h!] \centering \caption{Link budget for a \acrshort{hydron}-like satellite.} \label{tab:link_budget1} \renewcommand{\arraystretch}{1.18} \setlength{\extrarowheight}{1pt} \setlength{\tabcolsep}{7pt} \begin{tabular}{@{}>{\raggedright\arraybackslash}p{5.2cm}cc@{}} \toprule
+The following table summarizes the link-budget result for the HydRON-like LEO-to-ground optical downlink. The scenario assumes a 530 $\mathrm{km}$ LEO satellite, $380 \ \mu\mathrm{rad}$ FWHM transmitter divergence, $6 \ \mathrm{W}$ optical transmit power at $\lambda = 1554.13 \ \mathrm{nm}$, and an $80 \ \mathrm{cm}$ Optical Ground Station telescope aperture at the DLR Oberpfaffenhofen site.
 
-& \multicolumn{2}{c}{\textbf{\acrshort{hydron}-like \acrshort{leo}-to-ground link}} \\
-\cmidrule(l){2-3}
+| Parameter                                                               |  15° elevation |         Zenith |
+| ----------------------------------------------------------------------- | -------------: | -------------: |
+| Mean source power ($p_{\mathrm{Tx}}$)                                     |     +37.78 $\mathrm{dBm}$ |     +37.78 $\mathrm{dBm}$ |
+| Tx internal losses ($a_{\mathrm{Tx}}$)                                    |       -0.30 $\mathrm{dB}$ |       -0.30 $\mathrm{dB}$ |
+| Tx antenna gain ($g_{\mathrm{Tx}}$)                                       |      +78.85 $\mathrm{dB}$ |      +78.85 $\mathrm{dB}$ |
+| Pointing loss ($a_{\mathrm{BW}}$)                                         |       -0.20 $\mathrm{dB}$ |       -0.20 $\mathrm{dB}$ |
+| Distance ($L$)                                                            |      1472.8 $\mathrm{km}$ |       529.4 $\mathrm{km}$ |
+| Free-space loss ($a_{\mathrm{FSL}}$)                                      |     -261.52 $\mathrm{dB}$ |     -252.63 $\mathrm{dB}$ |
+| Atmospheric attenuation ($a_{\mathrm{Atm}}$)                              |       -1.94 $\mathrm{dB}$ |       -0.50 $\mathrm{dB}$ |
+| Scintillation loss ($a_{\mathrm{Sci}}$)                                   |            n/a |            n/a |
+| Rx antenna gain ($g_{\mathrm{Rx}}$)                                       |     +123.66 $\mathrm{dB}$ |     +123.66 $\mathrm{dB}$ |
+| **Power into OGS aperture without Rx losses ($p_{\mathrm{Rx,no,loss}}$)** | **-23.65 $\mathrm{dBm}$** | **-13.33 $\mathrm{dBm}$** |
+| Irradiance at OGS aperture without Rx losses                            |    9.647 $\mu W/m^2$ |  103.903 $\mu W/m^2$ |
+| Rx internal losses and signal splitting ($a_{\mathrm{Rx}}$)               |       -4.10 $\mathrm{dB}$ |       -4.10 $\mathrm{dB}$ |
+| Power after Rx internal losses ($p_{\mathrm{Rx}}$)                        |     -27.75 $\mathrm{dBm}$ |     -17.43 $\mathrm{dBm}$ |
+| Irradiance after Rx internal losses                                     |    3.753 $\mu W/m^2$ |   40.423 $\mu W/m^2$ |
+| RFE sensitivity ($p_{\mathrm{RFE}}$)                                      |     -40.94 $\mathrm{dBm}$ |     -40.94 $\mathrm{dBm}$ |
+| **Photons-per-bit margin**                                              |  **+13.19 $\mathrm{dB}$** |  **+23.51 $\mathrm{dB}$** |
 
-& \multicolumn{2}{c}{\small\textit{530 km sun-synchronous orbit, 380 $\mu\mathrm{rad}$ FWHM Tx divergence}} \\
-& \multicolumn{2}{c}{\small\textit{6 W Tx power at $\lambda = 1554.13$ nm}} \\
-& \multicolumn{2}{c}{\small\textit{into the 80 cm $\diameter$ telescope aperture}} \\
-& \multicolumn{2}{c}{\small\textit{of the \acrshort{dlr} site at Oberpfaffenhofen}} \\
-
-\addlinespace[0.5em]
-
-\textbf{Parameter (formula)}
-& \textbf{15$^\circ$ elevation}
-& \textbf{Zenith} \\
-\midrule
-
-Mean source power $p_{\mathrm{Tx}}$
-& +37.78 dBm
-& +37.78 dBm \\
-
-Tx internal losses $a_{\mathrm{Tx}}$
-& -0.30 dB
-& -0.30 dB \\
-
-Tx antenna gain $g_{\mathrm{Tx}}$ (\ref{eq:gain_tx})
-& +78.85 dB
-& +78.85 dB \\
-
-\addlinespace[0.25em]
-\midrule
-
-Pointing loss $a_{\mathrm{BW}}$ (\ref{eq:a_bw})
-& -0.20 dB
-& -0.20 dB \\
-
-Distance $L$ (\ref{eq:link_distance})
-& 1472.8 km
-& 529.4 km \\
-
-Free-space loss $a_{\mathrm{FSL}}$ (\ref{eq:a_fsl})
-& -261.52 dB
-& -252.63 dB \\
-
-\addlinespace[0.25em]
-\midrule
-
-Atmospheric attenuation $a_{\mathrm{Atm}}$ (\ref{eq:a_atm})
-& -1.94 dB
-& -0.50 dB \\
-
-Scintillation loss $a_{\mathrm{Sci}}$
-& n/a
-& n/a \\
-
-Rx antenna gain $g_{\mathrm{Rx}}$ (\ref{eq:gain_rx})
-& +123.66 dB
-& +123.66 dB \\
-
-\addlinespace[0.25em]
-\midrule
-
-Power into \acrshort{ogs} aperture without Rx losses $p_{\mathrm{Rx,no\,loss}}$ (\ref{eq:pr_no_loss})
-& \textbf{-23.65 dBm}
-& \textbf{-13.33 dBm} \\
-
-Irradiance at \acrshort{ogs} aperture without Rx losses (\ref{eq:irradiance})
-& 9.647 $\mu\mathrm{W}/\mathrm{m}^{2}$
-& 103.903 $\mu\mathrm{W}/\mathrm{m}^{2}$ \\
-
-Rx internal losses and signal splitting for tracking $a_{\mathrm{Rx}}$
-& -4.10 dB
-& -4.10 dB \\
-
-Power after Rx internal losses $p_{\mathrm{Rx}}$ (\ref{eq:link_budget})
-& -27.75 dBm
-& -17.43 dBm \\
-
-Irradiance after Rx internal losses (\ref{eq:irradiance})
-& 3.753 $\mu\mathrm{W}/\mathrm{m}^{2}$
-& 40.423 $\mu\mathrm{W}/\mathrm{m}^{2}$ \\
-
-RFE sensitivity $p_{\mathrm{RFE}}$ (\ref{eq:rfe_rx})
-& -40.94 dBm
-& -40.94 dBm \\
-
-Photons-per-bit margin (\ref{eq:link_mar})
-& +13.19 dB
-& +23.51 dB \\
-
-\hline \hline
-\end{tabular}
-\end{table}
 
 ---
 
