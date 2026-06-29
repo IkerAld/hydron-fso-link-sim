@@ -10,14 +10,14 @@ The work investigates whether a simplified HydRON-like coherent optical feeder l
 
 The simulator combines:
 
-* optical link-budget calculation versus elevation,
-* coherent DP-QPSK complex-baseband signal generation,
-* root-raised-cosine (RRC) pulse shaping and matched filtering,
-* deterministic atmospheric attenuation,
-* log-normal scintillation,
-* aperture averaging,
-* pointing jitter,
-* BER estimation versus $E_b/N_0$.
+* optical link-budget calculation versus elevation
+* coherent DP-QPSK complex-baseband signal generation
+* root-raised-cosine (RRC) pulse shaping and matched filtering
+* deterministic atmospheric attenuation
+* log-normal scintillation
+* aperture averaging
+* pointing jitter
+* BER estimation versus $E_b/N_0$
 
 Although the carrier is optical, the simulation follows the same system-engineering workflow used in RF wireless studies: link budget, propagation/channel modelling, impairment modelling, receiver sensitivity analysis, Monte Carlo evaluation, and BER/threshold comparison.
 
@@ -62,16 +62,16 @@ LinkBudget_LEO_ESTOL_OP.m
 
 Computes the optical link budget for a HydRON-like LEO-to-ground downlink. It includes:
 
-* LEO slant-range geometry,
-* Gaussian transmitter gain from FWHM divergence,
-* receiver aperture gain,
-* free-space loss,
-* atmospheric attenuation,
-* pointing loss,
-* receiver internal losses,
-* received power and irradiance versus elevation,
-* receiver sensitivity from photons per bit,
-* link margin at the design elevation.
+* LEO slant-range geometry
+* Gaussian transmitter gain from FWHM divergence
+* receiver aperture gain
+* free-space loss
+* atmospheric attenuation
+* pointing loss
+* receiver internal losses
+* received power and irradiance versus elevation
+* receiver sensitivity from photons per bit
+* link margin at the design elevation
 
 ```text
 DP_QPSK_FSO.m
@@ -79,18 +79,18 @@ DP_QPSK_FSO.m
 
 Runs the DP-QPSK physical/link-layer BER simulation. It includes:
 
-* random bit generation for X/Y polarizations,
-* Gray-coded QPSK mapping,
-* RRC pulse shaping,
-* transmit PSD and eye-diagram visualization,
-* atmospheric attenuation,
-* log-normal scintillation,
-* aperture averaging,
-* pointing jitter,
-* AWGN,
-* matched filtering,
-* symbol decisions and BER estimation,
-* BER curves versus $E_b/N_0$.
+* random bit generation for X/Y polarizations
+* Gray-coded QPSK mapping
+* RRC pulse shaping
+* transmit PSD and eye-diagram visualization
+* atmospheric attenuation
+* log-normal scintillation
+* aperture averaging
+* pointing jitter
+* AWGN
+* matched filtering
+* symbol decisions and BER estimation
+* BER curves versus $E_b/N_0$
 
 ---
 
@@ -191,7 +191,7 @@ on each side of complex baseband.
 
 ### Atmospheric turbulence profiles
 
-The simulator compares Hufnagel-Valley and modified Hufnagel-Valley refractive-index structure parameter profiles ($C_n^2(h)$).
+The simulator compares Hufnagel-Valley and modified Hufnagel-Valley refractive-index structure parameter profiles ( $C_n^2(h)$ ).
 
 ![HV and MHV turbulence profiles](docs/figures/B06_HV-vs-MHV.png)
 
@@ -213,7 +213,7 @@ This captures the reduction in power fluctuations when the received optical fiel
 
 The received complex-baseband spectrum is evaluated after the optical channel impairments and receiver matched filter.
 
-![Received spectrum after matched filter](docs/figures/B08_Rx-Spectrum-after-Matched Filter-AWGN-atmosphere-turbulence-pointing)
+![Received spectrum after matched filter](docs/figures/B08_Rx-Spectrum-after-Matched Filter-AWGN-atmosphere-turbulence-pointing.png)
 
 ---
 
@@ -225,11 +225,11 @@ The constellation plots show the progressive degradation of the DP-QPSK received
 
 The included cases are:
 
-1. AWGN,
-2. deterministic atmospheric loss,
-3. atmosphere + scintillation with point receiver,
-4. atmosphere + scintillation with aperture averaging,
-5. full channel including pointing jitter.
+1. AWGN
+2. deterministic atmospheric loss
+3. atmosphere + scintillation with point receiver
+4. atmosphere + scintillation with aperture averaging
+5. full channel including pointing jitter
 
 ---
 
@@ -336,7 +336,7 @@ Some parameters are configured for reasonable execution time. Larger Monte Carlo
 
 ## Author
 
-**Iker Aldasoro Marculeta**
+**Iker Aldasoro Marculeta** 
 MSc Telecommunications Engineering
 Universidad Carlos III de Madrid
 
